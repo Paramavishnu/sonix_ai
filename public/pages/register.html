@@ -1,0 +1,32 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Register — SONIXAI</title>
+<link rel="stylesheet" href="/css/theme.css"/><link rel="stylesheet" href="/css/components.css"/>
+</head><body>
+<nav class="navbar"><div class="container nav-inner"><a class="logo" href="/"><span class="logo-mark">S</span> SONIXAI</a><a class="btn btn-ghost" href="/">← Home</a></div></nav>
+<div class="container" style="max-width:480px;padding:40px 24px">
+  <div class="card">
+    <h2>Create account</h2>
+    <label class="label">Email</label><input id="email" class="input" placeholder="you@sonixai.local"/>
+    <label class="label" style="margin-top:12px">Password</label><input id="password" type="password" class="input" placeholder="••••••••"/>
+    <button id="regBtn" class="btn btn-primary" style="width:100%;margin-top:16px">Create Account</button>
+    <p style="text-align:center;color:var(--muted);font-size:13px;margin-top:12px"><a href="/pages/login.html" style="color:var(--accent)">Already have account?</a></p>
+  </div>
+</div>
+<script type="module">
+import { demoLogin } from '/js/core/firebase.js';
+import { toast } from '/js/core/app.js';
+document.getElementById('regBtn').addEventListener('click', async()=>{
+  const email=document.getElementById('email').value.trim();
+  if(!email) return toast('Email required','error');
+  try{
+    const { getAuth, createUserWithEmailAndPassword } = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js');
+    const auth=getAuth();
+    const cred=await createUserWithEmailAndPassword(auth,email,document.getElementById('password').value);
+    const token=await cred.user.getIdToken();
+    localStorage.setItem('sonix_token',token); localStorage.setItem('sonix_user',JSON.stringify({email,uid:cred.user.uid}));
+    toast('Account created','success'); location.href='/pages/dashboard.html'; return;
+  }catch(e){ console.warn(e); toast('Demo account created (Firebase not configured)','success'); demoLogin(email); location.href='/pages/dashboard.html'; }
+});
+</script>
+</body></html>

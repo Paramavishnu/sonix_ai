@@ -1,0 +1,107 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Editor — SONIXAI</title>
+<link rel="stylesheet" href="/css/theme.css"/><link rel="stylesheet" href="/css/components.css"/>
+<style>
+.editor-layout{display:grid;grid-template-columns:220px 1fr 280px;gap:12px;padding:12px;height:calc(100vh - 48px)}
+@media(max-width:1000px){.editor-layout{grid-template-columns:1fr}}
+.panel{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;overflow:auto}
+.preview-area{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:10px}
+.toolbar{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--surface);border:1px solid var(--border);border-radius:10px}
+</style>
+</head><body>
+<div class="toolbar">
+  <div style="display:flex;gap:10px;align-items:center"><a class="logo" href="/"><span class="logo-mark">S</span> SONIXAI</a><span class="badge" id="projName">Untitled</span><span id="saveStatus" style="font-size:12px;color:var(--muted)">All changes saved</span></div>
+  <div style="display:flex;gap:6px">
+    <button class="btn btn-ghost" onclick="history.back()">Undo</button>
+    <button class="btn btn-ghost" id="previewBtn">Preview</button>
+    <button class="btn btn-primary" id="exportBtn">Export</button>
+    <a class="btn btn-ghost" href="/pages/dashboard.html">Dashboard</a>
+  </div>
+</div>
+
+<div class="editor-layout">
+  <div class="panel">
+    <h4>Tools</h4>
+    <div style="display:grid;gap:6px">
+      <button class="btn btn-ghost" data-tab="script">📝 Script</button>
+      <button class="btn btn-ghost" data-tab="audio">🎙️ Audio</button>
+      <button class="btn btn-ghost" data-tab="music">🎵 Music</button>
+      <button class="btn btn-ghost" data-tab="sfx">🔔 SFX</button>
+      <button class="btn btn-ghost" data-tab="subtitles">💬 Subtitles</button>
+      <button class="btn btn-ghost" data-tab="visuals">🎨 Visuals</button>
+      <button class="btn btn-ghost" data-tab="thumbnail">🖼️ Thumbnail</button>
+      <button class="btn btn-ghost" data-tab="settings">⚙️ Settings</button>
+    </div>
+    <div id="toolContent" style="margin-top:12px">
+      <label class="label">Script</label><textarea id="script" class="textarea" rows="6"></textarea>
+      <label class="label" style="margin-top:8px">Platform</label><select id="platform" class="select"><option value="youtube">YouTube 16:9</option><option value="youtube_shorts">Shorts 9:16</option><option value="instagram_square">Square 1:1</option><option value="tiktok">TikTok 9:16</option></select>
+    </div>
+  </div>
+
+  <div class="preview-area">
+    <div style="display:flex;gap:6px;justify-content:center">
+      <button class="btn btn-ghost" data-ratio="16:9">16:9</button>
+      <button class="btn btn-ghost" data-ratio="9:16">9:16</button>
+      <button class="btn btn-ghost" data-ratio="1:1">1:1</button>
+    </div>
+    <div id="preview" class="aspect-preview" data-ratio="16:9">
+      <video id="video" controls style="width:100%;height:100%;background:#000;border-radius:10px"></video>
+      <div id="previewText" style="position:absolute;inset:0;display:grid;place-items:center;color:#fff;text-align:center;padding:20px;pointer-events:none">
+        <div><h3 id="previewTitle" style="margin:0">Preview</h3><p id="previewSub" style="opacity:.8">Select play to preview</p></div>
+      </div>
+    </div>
+    <div class="timeline" id="timeline">
+      <div class="track video">VIDEO</div>
+      <div class="track text">TEXT</div>
+      <div class="track voice">VOICE</div>
+      <div class="track music">MUSIC</div>
+      <div class="track sfx">SFX</div>
+      <div class="track sub">SUB</div>
+    </div>
+    <div style="display:flex;gap:6px">
+      <button class="btn btn-ghost" id="playBtn">▶ Play</button>
+      <button class="btn btn-ghost" id="pauseBtn">⏸ Pause</button>
+      <input type="range" id="seek" style="flex:1"/>
+      <span id="time" style="font-size:12px;color:var(--muted)">00:00 / 00:00</span>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h4>Properties</h4>
+    <label class="label">Template</label><select id="template" class="select"><option>minimal</option><option>educational</option><option>corporate</option><option>cinematic</option><option>bold</option><option>social</option><option>quote</option><option>news</option></select>
+    <label class="label" style="margin-top:8px">Music Volume</label><input type="range" id="musicVol" min="0" max="1" step="0.05" value="0.3"/>
+    <label class="label" style="margin-top:8px"><input type="checkbox" id="subs" checked/> Subtitles</label>
+    <label class="label" style="margin-top:8px">Subtitle Color</label><input type="color" id="subColor" value="#ffffff"/>
+    <div style="margin-top:12px"><button class="btn btn-primary" style="width:100%" id="renderBtn">Render Video</button><p style="font-size:12px;color:var(--muted)">Deterministic: script+duration → WebVTT → FFmpeg burn-in</p></div>
+    <div id="renderStatus" style="margin-top:8px;font-size:13px;color:var(--muted)"></div>
+  </div>
+</div>
+<script type="module">
+import { api, toast } from '/js/core/app.js';
+let project = JSON.parse(localStorage.getItem('sonix_last_project')||'null');
+if(project){ document.getElementById('projName').textContent=project.title; document.getElementById('script').value=project.script||''; document.getElementById('platform').value=project.platform||'youtube'; document.getElementById('template').value=project.template||'minimal'; }
+document.querySelectorAll('[data-ratio]').forEach(b=> b.addEventListener('click',()=>{ document.getElementById('preview').dataset.ratio=b.dataset.ratio; }));
+const video=document.getElementById('video');
+document.getElementById('playBtn').addEventListener('click',()=> video.play());
+document.getElementById('pauseBtn').addEventListener('click',()=> video.pause());
+document.getElementById('previewBtn').addEventListener('click',()=>{
+  const t=document.getElementById('script').value.slice(0,60) || 'SonixAI Preview';
+  document.getElementById('previewTitle').textContent=t;
+  toast('Preview updated');
+});
+document.getElementById('renderBtn').addEventListener('click', async()=>{
+  const script=document.getElementById('script').value; if(!script) return toast('Script required','error');
+  document.getElementById('renderStatus').textContent='Rendering via FFmpeg...';
+  try{
+    const data=await api('/api/video/render',{ method:'POST', body: JSON.stringify({ script, platform: document.getElementById('platform').value, template: document.getElementById('template').value, music: '', subtitles: document.getElementById('subs').checked }) });
+    video.src=data.url; video.style.display='block'; document.getElementById('renderStatus').textContent='Ready: '+data.url;
+    toast('Video rendered','success');
+  }catch(e){ document.getElementById('renderStatus').textContent=e.message; toast(e.message,'error'); }
+});
+document.getElementById('exportBtn').addEventListener('click',()=>{
+  if(!video.src) return toast('Render first','error');
+  const a=document.createElement('a'); a.href=video.src; a.download='sonixai-export.mp4'; a.click(); toast('Export started','success');
+});
+</script>
+</body></html>

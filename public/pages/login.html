@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Login — SONIXAI</title>
+<link rel="stylesheet" href="/css/theme.css"/><link rel="stylesheet" href="/css/components.css"/>
+</head><body>
+<nav class="navbar"><div class="container nav-inner"><a class="logo" href="/"><span class="logo-mark">S</span> SONIXAI</a><a class="btn btn-ghost" href="/">← Home</a></div></nav>
+<div class="container" style="max-width:480px;padding:40px 24px">
+  <div class="card">
+    <h2>Welcome back</h2><p style="color:var(--muted)">Firebase Auth or Demo Mode (no keys required)</p>
+    <label class="label">Email</label><input id="email" class="input" placeholder="demo@sonixai.local" value="demo@sonixai.local"/>
+    <label class="label" style="margin-top:12px">Password</label><input id="password" type="password" class="input" placeholder="demo123" value="demo123"/>
+    <button id="loginBtn" class="btn btn-primary" style="width:100%;margin-top:16px">Sign In</button>
+    <button id="demoBtn" class="btn btn-ghost" style="width:100%;margin-top:8px">Continue as Demo User</button>
+    <p style="text-align:center;color:var(--muted);font-size:13px;margin-top:12px">No account? <a href="/pages/register.html" style="color:var(--accent)">Register</a> • Demo needs no password</p>
+    <p style="font-size:12px;color:var(--muted);margin-top:8px">Firebase configured? Real auth will be used. Otherwise demo-local fallback.</p>
+  </div>
+</div>
+<script type="module">
+import { demoLogin, initFirebase } from '/js/core/firebase.js';
+import { toast } from '/js/core/app.js';
+await initFirebase();
+document.getElementById('loginBtn').addEventListener('click', async()=>{
+  const email=document.getElementById('email').value.trim();
+  if(!email) return toast('Email required','error');
+  // Try Firebase email/pass if available
+  try{
+    const { getAuth, signInWithEmailAndPassword } = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js');
+    const auth=getAuth();
+    if(auth?.currentUser || window.__FIREBASE_CONFIG__?.apiKey!=='demo'){
+      const cred = await signInWithEmailAndPassword(auth, email, document.getElementById('password').value);
+      const token = await cred.user.getIdToken();
+      localStorage.setItem('sonix_token', token);
+      localStorage.setItem('sonix_user', JSON.stringify({ email, uid: cred.user.uid }));
+      toast('Signed in','success'); location.href='/pages/dashboard.html'; return;
+    }
+  }catch(e){ console.warn(e); }
+  demoLogin(email); toast('Demo login','success'); location.href='/pages/dashboard.html';
+});
+document.getElementById('demoBtn').addEventListener('click',()=>{ demoLogin('demo@sonixai.local'); location.href='/pages/dashboard.html'; });
+</script>
+</body></html>

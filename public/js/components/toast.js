@@ -1,0 +1,1 @@
+export function showToast(m){ import('../core/app.js').then(({toast})=>toast(m)); }

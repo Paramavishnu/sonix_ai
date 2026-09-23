@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>SONIXAI — Write Once. Create Everywhere.</title>
+<meta name="description" content="Transform one script into professional audio and platform-ready video content."/>
+<link rel="stylesheet" href="/css/theme.css"/>
+<link rel="stylesheet" href="/css/components.css"/>
+</head>
+<body>
+<nav class="navbar">
+  <div class="container nav-inner">
+    <a class="logo" href="/"><span class="logo-mark">S</span> SONIXAI</a>
+    <div style="display:flex;gap:10px;align-items:center">
+      <a class="btn btn-ghost" href="/pages/login.html">Sign In</a>
+      <a class="btn btn-primary" href="/pages/create.html">Create Your First Project</a>
+      <button class="btn btn-ghost" id="themeToggle" aria-label="Toggle theme">◐</button>
+    </div>
+  </div>
+</nav>
+
+<section class="hero container">
+  <span class="badge">LOCAL-FIRST • FREE-FIRST • AI-WHERE-IT-MATTERS</span>
+  <h1>SONIXAI<br/><span style="background:linear-gradient(90deg,var(--accent),var(--accent-2));-webkit-background-clip:text;-webkit-text-fill-color:transparent">Write Once. Create Everywhere.</span></h1>
+  <p>Transform one script into professional audio and platform-ready video content. Local TTS, FFmpeg composition, music, SFX, subtitles, platform formatting, thumbnails & history — all free, all local.</p>
+  <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+    <a class="btn btn-primary" href="/pages/create.html">Create Your First Project →</a>
+    <a class="btn btn-ghost" href="#features">Explore Features</a>
+    <a class="btn btn-ghost" href="/pages/dashboard.html">Demo Mode</a>
+  </div>
+  <div class="workflow">
+    <span>SCRIPT</span><i>→</i><span>VOICE</span><i>→</i><span>VIDEO</span><i>→</i><span>MUSIC</span><i>→</i><span>SUBTITLES</span><i>→</i><span>PLATFORM</span><i>→</i><span>EXPORT</span>
+  </div>
+  <div class="card" style="max-width:900px;margin:24px auto;text-align:left">
+    <div style="display:flex;gap:12px;align-items:center;margin-bottom:12px"><span class="tag">Live Preview</span><span class="badge">16:9 • 9:16 • 1:1</span></div>
+    <div class="aspect-preview" id="heroPreview"><video id="heroVideo" style="width:100%;height:100%;object-fit:cover" poster="" controls muted loop playsinline></video><div style="position:absolute;inset:0;display:grid;place-items:center;background:linear-gradient(135deg,#0f172a,#7c3aed);color:#fff;padding:24px;text-align:center"><h3 style="margin:0;font-size:22px">“The future belongs to those who create.”</h3><p style="opacity:.8">SonixAI • Minimal Template • 1080p</p></div></div>
+  </div>
+</section>
+
+<section id="features" class="container" style="padding:24px 0">
+  <div class="grid grid-3">
+    <div class="card feature-card"><h3>🎙️ Text → Audio</h3><p>Piper TTS locally. WAV→MP3 via FFmpeg. Voices for 8 languages. Browser SpeechSynthesis fallback for preview.</p></div>
+    <div class="card feature-card"><h3>🎬 Text → Video</h3><p>Deterministic templates + FFmpeg composition. No generative AI video APIs. 8 templates, scene timing, transitions.</p></div>
+    <div class="card feature-card"><h3>🎵 Music + SFX</h3><p>Local licensed assets. 8 music categories, 8 SFX types. Preview, volume, fade, loop via FFmpeg mix.</p></div>
+    <div class="card feature-card"><h3>📝 Subtitles</h3><p>Deterministic timing from script+duration. WebVTT + FFmpeg burn-in. Fonts, colors, position, animation.</p></div>
+    <div class="card feature-card"><h3>📱 One-Click Formatting</h3><p>YouTube 16:9, Shorts/Reels/TikTok 9:16, Square 1:1. Deterministic config — no AI needed.</p></div>
+    <div class="card feature-card"><h3>🖼️ Thumbnails</h3><p>Canvas+Sharp templates (YouTube/IG/Vertical). Always works without AI. Optional AI provider never required.</p></div>
+    <div class="card feature-card"><h3>🌍 Translation</h3><p>Provider abstraction. Local dictionary fallback covers EN/TA/HI/TE/ML/ES/FR/DE. Optional external never blocks.</p></div>
+    <div class="card feature-card"><h3>📚 History & Versions</h3><p>Projects, prompts, versions (v1,v2,v3). Firestore with free-quota, in-memory fallback for demo.</p></div>
+    <div class="card feature-card"><h3>⚡ Demo Mode</h3><p>Full workflow without keys: sample script → audio → video → music → SFX → subtitles → thumbnail → history.</p></div>
+  </div>
+</section>
+
+<section class="container" style="padding:24px 0">
+  <div class="card" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+    <div><h3 style="margin:0">Free-First Architecture</h3><p style="color:var(--muted);margin:4px 0 0">No OpenAI/ElevenLabs/paid APIs required. Judge can run 100% local.</p></div>
+    <a class="btn btn-primary" href="/pages/create.html">Try Demo Now</a>
+  </div>
+</section>
+
+<footer style="border-top:1px solid var(--border);padding:20px 0;margin-top:20px;color:var(--muted);text-align:center;font-size:13px">
+  <div class="container">© 2026 SONIXAI — LOCAL-FIRST • FREE-FIRST • DETERMINISTIC-WHERE-POSSIBLE</div>
+</footer>
+
+<script type="module">
+import { initTheme, setTheme } from '/js/core/app.js';
+initTheme();
+document.getElementById('themeToggle')?.addEventListener('click',()=>{
+  const cur=document.documentElement.getAttribute('data-theme')==='light'?'dark':'light';
+  setTheme(cur);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,148 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Create — SONIXAI</title>
+<link rel="stylesheet" href="/css/theme.css"/><link rel="stylesheet" href="/css/components.css"/>
+</head><body>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="logo" style="margin-bottom:16px"><span class="logo-mark">S</span> SONIXAI</div>
+    <a href="/pages/dashboard.html">🏠 Dashboard</a>
+    <a class="active" href="/pages/create.html">✨ Create</a>
+    <a href="/pages/projects.html">📁 Projects</a>
+    <a href="/pages/history.html">🕘 History</a>
+    <a href="/pages/editor.html">🎬 Editor</a>
+    <a href="/pages/settings.html">⚙️ Settings</a>
+  </aside>
+  <main class="main" style="max-width:900px">
+    <h2>Create Project</h2>
+    <div class="card">
+      <label class="label">Project Title</label><input id="title" class="input" placeholder="My First SonixAI Video"/>
+      <label class="label" style="margin-top:12px">Script</label>
+      <textarea id="script" class="textarea" placeholder="Enter your script... e.g., Welcome to SonixAI. Write once, create everywhere.">Welcome to SonixAI. Write once, create everywhere. Transform your ideas into professional audio and platform-ready videos with local, free-first technology.</textarea>
+      <div style="display:flex;gap:12px;color:var(--muted);font-size:12px;margin-top:6px"><span id="wc">0 words</span><span id="cc">0 chars</span><span id="dur">~0s</span></div>
+
+      <div class="grid grid-2" style="margin-top:12px">
+        <div><label class="label">Type</label><select id="type" class="select"><option value="audio">Audio</option><option value="video" selected>Video</option></select></div>
+        <div><label class="label">Language</label><select id="lang" class="select"><option value="en">English</option><option value="ta">Tamil</option><option value="hi">Hindi</option><option value="te">Telugu</option><option value="ml">Malayalam</option><option value="es">Spanish</option><option value="fr">French</option><option value="de">German</option></select></div>
+        <div><label class="label">Voice</label><select id="voice" class="select"></select></div>
+        <div><label class="label">Platform</label><select id="platform" class="select"><option value="youtube">YouTube 16:9</option><option value="youtube_shorts">YouTube Shorts 9:16</option><option value="instagram_reels">Instagram Reels 9:16</option><option value="instagram_square">Instagram Square 1:1</option><option value="tiktok">TikTok 9:16</option></select></div>
+        <div><label class="label">Template</label><select id="template" class="select"><option>minimal</option><option>educational</option><option>corporate</option><option>cinematic</option><option>bold</option><option>social</option><option>quote</option><option>news</option></select></div>
+        <div><label class="label">Music</label><select id="music" class="select"><option value="">None</option><option>calm</option><option>cinematic</option><option>corporate</option><option>energetic</option><option>lofi</option><option>inspirational</option><option>technology</option><option>ambient</option></select></div>
+      </div>
+      <label class="label" style="margin-top:12px"><input type="checkbox" id="subs" checked/> Enable subtitles (deterministic WebVTT + FFmpeg burn-in)</label>
+      <div style="margin-top:12px">
+        <label class="label">SFX (click to add at 1s)</label>
+        <div id="sfxBtns" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+        <div id="sfxList" style="margin-top:6px;font-size:13px;color:var(--muted)"></div>
+      </div>
+
+      <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">
+        <button id="genAudio" class="btn btn-ghost">🎙️ Generate Audio Preview</button>
+        <button id="genVideo" class="btn btn-primary">🎬 Generate Video</button>
+        <button id="translateBtn" class="btn btn-ghost">🌍 Translate</button>
+        <button id="thumbBtn" class="btn btn-ghost">🖼️ Generate Thumbnail</button>
+      </div>
+
+      <div id="progress" class="progress" style="margin-top:12px;display:none"><div id="bar" class="progress-bar"></div></div>
+      <div id="status" style="margin-top:8px;font-size:13px;color:var(--muted)"></div>
+
+      <div id="result" style="margin-top:16px;display:none">
+        <div class="card" style="background:var(--surface)">
+          <div style="display:flex;gap:12px;flex-wrap:wrap">
+            <audio id="audioOut" controls style="flex:1"></audio>
+            <a id="audioDl" class="btn btn-ghost" download>Download Audio</a>
+          </div>
+          <video id="videoOut" controls style="width:100%;margin-top:12px;border-radius:10px;background:#000;display:none"></video>
+          <div id="thumbOut" style="margin-top:12px"></div>
+          <div style="margin-top:12px;display:flex;gap:8px">
+            <button id="saveProject" class="btn btn-primary">💾 Save Project</button>
+            <a id="openEditor" class="btn btn-ghost" href="/pages/editor.html">Open in Editor</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <h3>How it works</h3>
+      <p style="color:var(--muted);font-size:14px">Text → Piper TTS → FFmpeg (voice+music+SFX) → Video template+subtitles → Platform formatting → MP4. No paid APIs.</p>
+    </div>
+  </main>
+</div>
+<script type="module">
+import { api, wordCount, estimateDuration, toast } from '/js/core/app.js';
+const $=s=>document.getElementById(s);
+const script=$('script'), wc=$('wc'), cc=$('cc'), dur=$('dur');
+function refresh(){
+  const t=script.value; wc.textContent=wordCount(t)+' words'; cc.textContent=t.length+' chars'; dur.textContent='~'+estimateDuration(t)+'s';
+}
+script.addEventListener('input', refresh); refresh();
+if(new URLSearchParams(location.search).get('demo')) script.value='Welcome to SonixAI Demo. Write once, create everywhere. This workflow runs 100% local and free, with no paid APIs required.';
+
+// voices
+api('/api/voices').then(d=>{
+  const sel=$('voice'); sel.innerHTML=d.voices.map(v=>`<option value="${v.id}">${v.name} (${v.lang})</option>`).join('');
+}).catch(()=>{ $('voice').innerHTML='<option>en_US-lessac-medium</option>'; });
+// sfx
+const sfxChoices=['click','whoosh','pop','notification','transition','ambient','keyboard','success'];
+let sfx=[];
+const btns=document.getElementById('sfxBtns');
+sfxChoices.forEach(id=>{
+  const b=document.createElement('button'); b.className='btn btn-ghost'; b.style.fontSize='12px'; b.textContent='+ '+id; b.type='button';
+  b.addEventListener('click',()=>{ sfx.push({id, at: Math.floor(Math.random()*3)+1}); renderSfx(); toast('Added '+id); });
+  btns.appendChild(b);
+});
+function renderSfx(){ document.getElementById('sfxList').textContent = sfx.length? sfx.map(s=>`${s.id}@${s.at}s`).join(', ') : 'None'; }
+renderSfx();
+
+function busy(b, msg){
+  const bar=document.getElementById('bar'), p=document.getElementById('progress'), st=document.getElementById('status');
+  p.style.display=b?'block':'none';
+  if(b){ bar.style.width='60%'; st.textContent=msg; } else { bar.style.width='100%'; setTimeout(()=>p.style.display='none',600); }
+}
+
+let lastAudio=null, lastVideo=null, lastThumb=null;
+document.getElementById('genAudio').addEventListener('click', async()=>{
+  try{
+    busy(true,'Generating audio via Piper/FFmpeg...');
+    const data=await api('/api/tts',{ method:'POST', body: JSON.stringify({ text: script.value, language: $('lang').value, voice: $('voice').value, speed:1 }) });
+    busy(false); toast('Audio ready','success'); document.getElementById('status').textContent=`Audio: ${data.duration}s via ${data.engine}`;
+    lastAudio=data.url;
+    const a=document.getElementById('audioOut'); a.src=data.url; document.getElementById('audioDl').href=data.url; document.getElementById('result').style.display='block';
+    // Fallback SpeechSynthesis preview
+    if(data.engine==='ffmpeg-synth'){ const u=new SpeechSynthesisUtterance(script.value.slice(0,200)); speechSynthesis.speak(u); }
+  }catch(e){ busy(false); toast(e.message,'error'); }
+});
+document.getElementById('genVideo').addEventListener('click', async()=>{
+  try{
+    busy(true,'Rendering video (FFmpeg)... may take 10-20s');
+    const data=await api('/api/video/render',{ method:'POST', body: JSON.stringify({ script: script.value, language: $('lang').value, voice: $('voice').value, platform: $('platform').value, template: $('template').value, music: $('music').value? $('music').value+'.mp3':'', musicVolume:0.3, sfx, subtitles: $('subs').checked }) });
+    busy(false); toast('Video ready','success');
+    document.getElementById('status').textContent=`Video ${data.width}x${data.height} ${data.ratio} ~${Math.round(data.duration)}s`;
+    lastVideo=data.url;
+    const v=document.getElementById('videoOut'); v.src=data.url; v.style.display='block'; document.getElementById('result').style.display='block';
+    if(data.vttUrl){ const track=document.createElement('track'); track.kind='subtitles'; track.src=data.vttUrl; track.default=true; v.appendChild(track); }
+  }catch(e){ busy(false); toast(e.message,'error'); }
+});
+document.getElementById('translateBtn').addEventListener('click', async()=>{
+  const lang=$('lang').value; if(lang==='en') return toast('Select non-English language first','error');
+  try{
+    const data=await api('/api/translate',{ method:'POST', body: JSON.stringify({ text: script.value, targetLang: lang }) });
+    script.value=data.translated; refresh(); toast('Translated to '+lang,'success');
+  }catch(e){ toast(e.message,'error'); }
+});
+document.getElementById('thumbBtn').addEventListener('click', async()=>{
+  try{
+    const data=await api('/api/thumbnail/generate',{ method:'POST', body: JSON.stringify({ title: $('title').value||'SONIXAI', subtitle: script.value.slice(0,40), template: $('platform').value.includes('square')?'instagram': $('platform').value.includes('9:16')?'vertical':'youtube' }) });
+    lastThumb=data.url; document.getElementById('thumbOut').innerHTML=`<img src="${data.url}" style="max-width:320px;border-radius:10px;border:1px solid var(--border)"/><div><a class="btn btn-ghost" href="${data.url}" download>Download Thumbnail</a></div>`; document.getElementById('result').style.display='block'; toast('Thumbnail ready','success');
+  }catch(e){ toast(e.message,'error'); }
+});
+document.getElementById('saveProject').addEventListener('click', async()=>{
+  try{
+    const body={ title: $('title').value||'Untitled', script: script.value, language: $('lang').value, voice: $('voice').value, platform: $('platform').value, template: $('template').value, music: $('music').value, soundEffects: sfx, subtitles: { enabled: $('subs').checked }, thumbnail: lastThumb, audioUrl: lastAudio, videoUrl: lastVideo, status: lastVideo?'ready':'draft' };
+    const data=await api('/api/projects',{ method:'POST', body: JSON.stringify(body) });
+    toast('Project saved','success'); localStorage.setItem('sonix_last_project', JSON.stringify(data.project));
+    await api('/api/prompts',{ method:'POST', body: JSON.stringify({ content: script.value, type:'script', projectId: data.project.id }) });
+  }catch(e){ toast(e.message,'error'); }
+});
+</script>
+</body></html>

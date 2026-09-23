@@ -1,0 +1,11 @@
+/* additional component styles */
+.feature-card { padding:24px; text-align:left}
+.feature-card h3{margin:10px 0 6px;font-size:18px}
+.feature-card p{color:var(--muted);font-size:14px;margin:0}
+.chip{padding:6px 10px;border-radius:999px;background:var(--surface);border:1px solid var(--border);font-size:12px}
+.empty{padding:40px;text-align:center;color:var(--muted);border:1px dashed var(--border);border-radius:12px;background:var(--surface)}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;place-items:center;z-index:90;padding:20px}
+.modal.open{display:grid}
+.modal-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px;max-width:520px;width:100%;box-shadow:var(--shadow)}
+.audio-player{width:100%;margin-top:8px}
+.tag{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700}

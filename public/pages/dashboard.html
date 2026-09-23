@@ -1,0 +1,84 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Dashboard — SONIXAI</title>
+<link rel="stylesheet" href="/css/theme.css"/><link rel="stylesheet" href="/css/components.css"/>
+</head><body>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="logo" style="margin-bottom:16px"><span class="logo-mark">S</span> SONIXAI</div>
+    <a class="active" href="/pages/dashboard.html">🏠 Dashboard</a>
+    <a href="/pages/create.html">✨ Create</a>
+    <a href="/pages/projects.html">📁 Projects</a>
+    <a href="/pages/history.html">🕘 History</a>
+    <a href="/pages/editor.html">🎬 Editor</a>
+    <a href="/pages/settings.html">⚙️ Settings</a>
+    <div style="margin-top:16px;padding:12px;background:var(--card);border:1px solid var(--border);border-radius:10px">
+      <div style="font-size:12px;color:var(--muted)">Demo Mode</div><div style="font-weight:700">All features local</div>
+      <button id="logout" class="btn btn-ghost" style="width:100%;margin-top:8px;font-size:13px">Logout</button>
+    </div>
+  </aside>
+  <main class="main">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+      <div><h2 style="margin:0">Welcome back 👋</h2><p style="color:var(--muted);margin:4px 0">Write Once. Create Everywhere.</p></div>
+      <a class="btn btn-primary" href="/pages/create.html">+ Create New Project</a>
+    </div>
+
+    <div class="grid grid-4" style="margin-top:16px">
+      <a class="card" href="/pages/create.html?type=audio">🎙️ Text → Audio <br/><span style="color:var(--muted);font-size:13px">Piper TTS locally</span></a>
+      <a class="card" href="/pages/create.html?type=video">🎬 Text → Video <br/><span style="color:var(--muted);font-size:13px">FFmpeg templates</span></a>
+      <a class="card" href="/pages/create.html#translate">🌍 Translate <br/><span style="color:var(--muted);font-size:13px">8 languages</span></a>
+      <a class="card" href="/pages/create.html#thumb">🖼️ Thumbnail <br/><span style="color:var(--muted);font-size:13px">Canvas/Sharp</span></a>
+    </div>
+
+    <div class="grid grid-2" style="margin-top:16px">
+      <div class="card">
+        <div style="display:flex;justify-content:space-between"><h3>Recent Projects</h3><a href="/pages/projects.html" style="color:var(--accent);font-size:13px">View all</a></div>
+        <div id="recentProjects"><div class="skeleton" style="height:48px"></div></div>
+      </div>
+      <div class="card">
+        <div style="display:flex;justify-content:space-between"><h3>Recent Scripts</h3><a href="/pages/history.html" style="color:var(--accent);font-size:13px">History</a></div>
+        <div id="recentPrompts"><div class="skeleton" style="height:48px"></div></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <h3>Quick Demo</h3>
+      <p style="color:var(--muted)">Experience full workflow without keys: Script → Voice → Video → Music → SFX → Subtitles → Platform → Export</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-ghost" onclick="runDemo()">▶ Run Demo Workflow</button>
+        <a class="btn btn-primary" href="/pages/create.html?demo=1">Open Demo Project</a>
+      </div>
+      <div id="demoStatus" style="margin-top:12px;color:var(--muted);font-size:13px"></div>
+    </div>
+  </main>
+</div>
+<script type="module">
+import { api, initTheme } from '/js/core/app.js';
+import { logout } from '/js/core/firebase.js';
+initTheme();
+document.getElementById('logout').addEventListener('click', logout);
+async function load(){
+  try{
+    const { projects } = await api('/api/projects');
+    const el=document.getElementById('recentProjects');
+    if(!projects.length) el.innerHTML='<div class="empty">No projects yet. Create one!</div>';
+    else el.innerHTML = projects.slice(0,4).map(p=> `<div style="padding:10px;border:1px solid var(--border);border-radius:10px;margin-top:8px;display:flex;justify-content:space-between;align-items:center"><div><div style="font-weight:600">${p.title}</div><div style="font-size:12px;color:var(--muted)">${p.platform||'youtube'} • ${new Date(p.updatedAt).toLocaleDateString()}</div></div><span class="badge">${p.status||'draft'}</span></div>`).join('');
+  }catch{ document.getElementById('recentProjects').innerHTML='<div class="empty">Demo projects will appear here</div>'; }
+  try{
+    const { prompts } = await api('/api/prompts');
+    const el=document.getElementById('recentPrompts');
+    if(!prompts.length) el.innerHTML='<div class="empty">No scripts yet</div>';
+    else el.innerHTML = prompts.slice(0,4).map(pr=> `<div style="padding:8px;border:1px solid var(--border);border-radius:10px;margin-top:8px"><div style="font-size:13px">${pr.content.slice(0,80)}</div><div style="font-size:11px;color:var(--muted)">${pr.type} • ${new Date(pr.createdAt).toLocaleString()}</div></div>`).join('');
+  }catch{ document.getElementById('recentPrompts').innerHTML='<div class="empty">Demo scripts will appear here</div>'; }
+}
+load();
+window.runDemo = async function(){
+  const s=document.getElementById('demoStatus');
+  s.textContent='Running demo: generating audio...';
+  try{
+    const r=await api('/api/tts',{ method:'POST', body: JSON.stringify({ text:'Welcome to SonixAI. Write once, create everywhere. This is a local-first demo.', language:'en', voice:'en_US-lessac-medium', speed:1 }) });
+    s.textContent=`Demo audio ready (${r.duration}s, ${r.engine}). Try Create page for video.`;
+  }catch(e){ s.textContent='Demo failed: '+e.message; }
+};
+</script>
+</body></html>

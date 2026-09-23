@@ -1,0 +1,46 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Settings — SONIXAI</title>
+<link rel="stylesheet" href="/css/theme.css"/><link rel="stylesheet" href="/css/components.css"/>
+</head><body>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="logo" style="margin-bottom:16px"><span class="logo-mark">S</span> SONIXAI</div>
+    <a href="/pages/dashboard.html">🏠 Dashboard</a>
+    <a href="/pages/create.html">✨ Create</a>
+    <a href="/pages/projects.html">📁 Projects</a>
+    <a href="/pages/history.html">🕘 History</a>
+    <a href="/pages/editor.html">🎬 Editor</a>
+    <a class="active" href="/pages/settings.html">⚙️ Settings</a>
+  </aside>
+  <main class="main" style="max-width:700px">
+    <h2>Settings</h2>
+    <div class="card">
+      <h3>Appearance</h3>
+      <div style="display:flex;gap:8px"><button class="btn btn-ghost" onclick="setTheme('dark')">Dark</button><button class="btn btn-ghost" onclick="setTheme('light')">Light</button></div>
+      <p style="color:var(--muted);font-size:13px">Dark-first with light mode toggle. Respects prefers-reduced-motion.</p>
+    </div>
+    <div class="card" style="margin-top:12px">
+      <h3>Firebase</h3>
+      <p style="color:var(--muted);font-size:13px">Frontend config is in <code>window.__FIREBASE_CONFIG__</code>. If not set, demo-local fallback is active (no quotas used).</p>
+      <pre style="background:var(--surface);padding:12px;border-radius:8px;overflow:auto;font-size:12px">FIREBASE_PROJECT_ID=demo-sonixai
+FIREBASE_API_KEY=demo
+# Set real values in .env and inject via server or frontend config
+</pre>
+      <p style="color:var(--muted);font-size:12px">Free quotas apply when Firebase is configured. App never claims unlimited cloud.</p>
+    </div>
+    <div class="card" style="margin-top:12px">
+      <h3>Local Assets</h3>
+      <p style="color:var(--muted);font-size:13px">Music: <code>public/assets/music/*.mp3</code> (Calm, Cinematic, etc.) SFX: <code>public/assets/sfx/*.mp3</code>. Replace with your licensed files.</p>
+    </div>
+    <div class="card" style="margin-top:12px">
+      <h3>Optional AI</h3>
+      <p style="color:var(--muted);font-size:13px">Leave <code>OPTIONAL_AI_IMAGE_API_KEY</code> and <code>OPTIONAL_TRANSLATION_API_KEY</code> empty to stay 100% free. Core always works.</p>
+    </div>
+  </main>
+</div>
+<script type="module">
+import { setTheme } from '/js/core/app.js';
+window.setTheme=setTheme;
+</script>
+</body></html>

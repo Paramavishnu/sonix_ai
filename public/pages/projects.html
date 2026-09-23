@@ -1,0 +1,74 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Projects — SONIXAI</title>
+<link rel="stylesheet" href="/css/theme.css"/><link rel="stylesheet" href="/css/components.css"/>
+</head><body>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="logo" style="margin-bottom:16px"><span class="logo-mark">S</span> SONIXAI</div>
+    <a href="/pages/dashboard.html">🏠 Dashboard</a>
+    <a href="/pages/create.html">✨ Create</a>
+    <a class="active" href="/pages/projects.html">📁 Projects</a>
+    <a href="/pages/history.html">🕘 History</a>
+    <a href="/pages/editor.html">🎬 Editor</a>
+    <a href="/pages/settings.html">⚙️ Settings</a>
+  </aside>
+  <main class="main">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+      <h2>Projects</h2>
+      <div style="display:flex;gap:8px">
+        <input id="search" class="input" placeholder="Search title/script..." style="width:240px"/>
+        <select id="filterType" class="select" style="width:140px"><option value="">All Types</option><option value="audio">Audio</option><option value="video">Video</option></select>
+        <select id="filterPlat" class="select" style="width:160px"><option value="">All Platforms</option><option value="youtube">YouTube</option><option value="tiktok">TikTok</option><option value="instagram_square">Square</option></select>
+        <a class="btn btn-primary" href="/pages/create.html">+ New</a>
+      </div>
+    </div>
+    <div id="grid" class="grid grid-3" style="margin-top:16px"></div>
+  </main>
+</div>
+<div id="modal" class="modal"><div class="modal-card"><h3 id="modalTitle"></h3><p id="modalMeta" style="color:var(--muted);font-size:13px"></p><div style="display:flex;gap:8px;margin-top:12px"><button class="btn btn-primary" id="openBtn">Open in Editor</button><button class="btn btn-ghost" id="dupBtn">Duplicate</button><button class="btn btn-ghost" id="verBtn">Create Version</button><button class="btn btn-ghost" id="delBtn" style="color:#ef4444">Delete</button><button class="btn btn-ghost" onclick="document.getElementById('modal').classList.remove('open')">Close</button></div><div id="versions" style="margin-top:12px"></div></div></div>
+<script type="module">
+import { api, toast } from '/js/core/app.js';
+let all=[];
+async function load(){
+  try{ const {projects}=await api('/api/projects'); all=projects; render(); }catch(e){ document.getElementById('grid').innerHTML='<div class="empty">No projects yet (demo fallback)</div>'; }
+}
+function render(){
+  const q=document.getElementById('search').value.toLowerCase();
+  const t=document.getElementById('filterType').value;
+  const p=document.getElementById('filterPlat').value;
+  let list=all;
+  if(q) list=list.filter(x=> (x.title+x.script).toLowerCase().includes(q));
+  if(t) list=list.filter(x=> (x.type||'video')===t);
+  if(p) list=list.filter(x=> x.platform===p);
+  const grid=document.getElementById('grid');
+  if(!list.length) grid.innerHTML='<div class="empty">No matching projects</div>';
+  else grid.innerHTML=list.map(pr=>`
+    <div class="card" data-id="${pr.id}" style="cursor:pointer">
+      <div style="height:120px;background:linear-gradient(135deg,#0f172a,#7c3aed);border-radius:10px;display:grid;place-items:center;color:#fff;font-weight:800;text-align:center;padding:12px">${pr.title}</div>
+      <div style="margin-top:10px;display:flex;justify-content:space-between;align-items:center"><span class="badge">${pr.platform||'youtube'}</span><span style="font-size:12px;color:var(--muted)">${new Date(pr.updatedAt).toLocaleDateString()}</span></div>
+      <div style="font-weight:600;margin-top:6px">${pr.title}</div><div style="font-size:13px;color:var(--muted)">${(pr.script||'').slice(0,60)}...</div>
+      <div style="display:flex;gap:6px;margin-top:8px"><span class="chip">${pr.language||'en'}</span><span class="chip">${pr.template||'minimal'}</span></div>
+    </div>`).join('');
+  grid.querySelectorAll('.card').forEach(c=> c.addEventListener('click',()=> open(c.dataset.id)));
+}
+async function open(id){
+  const {project}=await api('/api/projects/'+id);
+  document.getElementById('modalTitle').textContent=project.title;
+  document.getElementById('modalMeta').textContent=`${project.platform} • ${project.language} • ${new Date(project.updatedAt).toLocaleString()}`;
+  document.getElementById('modal').classList.add('open');
+  document.getElementById('openBtn').onclick=()=>{ localStorage.setItem('sonix_last_project', JSON.stringify(project)); location.href='/pages/editor.html'; };
+  document.getElementById('dupBtn').onclick=async()=>{ await api('/api/projects/'+id+'/duplicate',{method:'POST'}); toast('Duplicated','success'); load(); };
+  document.getElementById('verBtn').onclick=async()=>{ await api('/api/projects/'+id+'/version',{method:'POST'}); toast('Version created','success'); loadVersions(id); };
+  document.getElementById('delBtn').onclick=async()=>{ if(!confirm('Delete?')) return; await api('/api/projects/'+id,{method:'DELETE'}); toast('Deleted','success'); document.getElementById('modal').classList.remove('open'); load(); };
+  loadVersions(id);
+}
+async function loadVersions(id){
+  try{ const {versions}=await api('/api/projects/'+id+'/versions'); document.getElementById('versions').innerHTML=versions.length? '<div style="font-size:12px;color:var(--muted)">Versions: '+versions.map(v=>v.version+' @ '+new Date(v.createdAt).toLocaleDateString()).join(', ')+'</div>' : '<div style="font-size:12px;color:var(--muted)">No versions yet</div>'; }catch{}
+}
+document.getElementById('search').addEventListener('input', render);
+document.getElementById('filterType').addEventListener('change', render);
+document.getElementById('filterPlat').addEventListener('change', render);
+load();
+</script>
+</body></html>
