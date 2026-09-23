@@ -2,7 +2,7 @@ node_modules/
 .env
 server/temp/*
 !server/temp/.gitkeep
-public/assets/music/*.mp3
+
 public/assets/sfx/*.mp3
 public/exports/*
 models/

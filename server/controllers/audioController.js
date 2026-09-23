@@ -19,7 +19,7 @@ export async function mix(req,res){
     if(fs.existsSync(cand)) musicFile=cand;
   }
   let sfxFiles=[];
-  for(const s of (Array.isArray(sfx)?s:[])){
+  for(const s of (Array.isArray(sfx)?sfx:[])){
     const cand = path.join(sfxDir, s.id);
     // support id like "click.mp3" or "click"
     let file = fs.existsSync(cand) ? cand : fs.existsSync(cand+'.mp3') ? cand+'.mp3' : null;

@@ -26,7 +26,7 @@ export async function render(req,res){
     }
     const sfxDir = path.join(__dirname,'..','..','public','assets','sfx');
     const sfxFiles=[];
-    for(const s of (Array.isArray(sfx)?s:[])){
+    for(const s of (Array.isArray(sfx)?sfx:[])){
       const cand = path.join(sfxDir, s.id);
       let file = fs.existsSync(cand) ? cand : fs.existsSync(cand+'.mp3') ? cand+'.mp3' : null;
       if(file) sfxFiles.push({ file, at:s.at||0 });
