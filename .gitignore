@@ -2,10 +2,12 @@ node_modules/
 .env
 server/temp/*
 !server/temp/.gitkeep
-
-public/assets/sfx/*.mp3
 public/exports/*
-models/
+!public/exports/.gitkeep
 dist/
 *.log
 .DS_Store
+# models/piper onnx are large local binaries — kept locally but ignored in git (uncomment next line to track if needed)
+models/
+# keep sfx/music assets tracked (do NOT ignore)
+# sfx and music mp3 are part of free-first local assets

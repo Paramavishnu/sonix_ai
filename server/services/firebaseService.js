@@ -72,7 +72,8 @@ export const FirebaseService = {
   async duplicateProject(userId, id){
     const p=await this.getProject(userId,id);
     if(!p) throw Object.assign(new Error('Project not found'),{status:404});
-    const copy={ ...p, id:undefined, title: p.title+' (Copy)', createdAt:now(), updatedAt:now() };
+    const { id: _ignore, createdAt:_c, updatedAt:_u, ...rest } = p;
+    const copy={ ...rest, title: (p.title||'Untitled')+' (Copy)' };
     return this.createProject(userId, copy);
   },
   async createVersion(userId, id){

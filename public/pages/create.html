@@ -29,6 +29,7 @@
         <div><label class="label">Template</label><select id="template" class="select"><option>minimal</option><option>educational</option><option>corporate</option><option>cinematic</option><option>bold</option><option>social</option><option>quote</option><option>news</option></select></div>
         <div><label class="label">Music</label><select id="music" class="select"><option value="">None</option><option>calm</option><option>cinematic</option><option>corporate</option><option>energetic</option><option>lofi</option><option>inspirational</option><option>technology</option><option>ambient</option></select></div>
       </div>
+      <div id="musicPreviewWrap" style="margin-top:8px;display:none"><audio id="musicPreview" controls style="width:100%"></audio><div style="font-size:11px;color:var(--muted)">Music preview (will be mixed at 0.3 volume in video)</div></div>
       <label class="label" style="margin-top:12px"><input type="checkbox" id="subs" checked/> Enable subtitles (deterministic WebVTT + FFmpeg burn-in)</label>
       <div style="margin-top:12px">
         <label class="label">SFX (click to add at 1s)</label>
@@ -79,9 +80,37 @@ script.addEventListener('input', refresh); refresh();
 if(new URLSearchParams(location.search).get('demo')) script.value='Welcome to SonixAI Demo. Write once, create everywhere. This workflow runs 100% local and free, with no paid APIs required.';
 
 // voices
-api('/api/voices').then(d=>{
-  const sel=$('voice'); sel.innerHTML=d.voices.map(v=>`<option value="${v.id}">${v.name} (${v.lang})</option>`).join('');
-}).catch(()=>{ $('voice').innerHTML='<option>en_US-lessac-medium</option>'; });
+let availableVoices = [];
+
+api('/api/voices').then(d => {
+  availableVoices = d.voices;
+
+  updateVoices($('lang').value);
+
+  $('lang').addEventListener('change', () => {
+    updateVoices($('lang').value);
+  });
+}).catch(() => {
+  $('voice').innerHTML =
+    '<option value="en_US-lessac-medium">Lessac (US English)</option>';
+});
+
+function updateVoices(language) {
+  const sel = $('voice');
+  let voices = availableVoices.filter(v => v.lang === language);
+  // If no native voice, show English fallback but keep language selection for translation
+  if (voices.length === 0) {
+    const fallback = availableVoices.filter(v=>v.lang==='en');
+    if(fallback.length){
+      sel.innerHTML = fallback.map(v=>`<option value="${v.id}">${v.name} (EN fallback for ${language})</option>`).join('');
+      sel.title = `No native ${language} voice model installed — using English voice. Install ${language} Piper model for native voice.`;
+    } else {
+      sel.innerHTML = '<option value="en_US-lessac-medium">Lessac (fallback)</option>';
+    }
+    return;
+  }
+  sel.innerHTML = voices.map(v => `<option value="${v.id}">${v.name}</option>`).join('');
+}
 // sfx
 const sfxChoices=['click','whoosh','pop','notification','transition','ambient','keyboard','success'];
 let sfx=[];
@@ -103,32 +132,64 @@ function busy(b, msg){
 let lastAudio=null, lastVideo=null, lastThumb=null;
 document.getElementById('genAudio').addEventListener('click', async()=>{
   try{
+    if(!script.value.trim()) return toast('Script required','error');
     busy(true,'Generating audio via Piper/FFmpeg...');
-    const data=await api('/api/tts',{ method:'POST', body: JSON.stringify({ text: script.value, language: $('lang').value, voice: $('voice').value, speed:1 }) });
-    busy(false); toast('Audio ready','success'); document.getElementById('status').textContent=`Audio: ${data.duration}s via ${data.engine}`;
+    const voiceVal = $('voice').value || 'en_US-lessac-medium';
+    const data=await api('/api/tts',{ method:'POST', body: JSON.stringify({ text: script.value, language: $('lang').value, voice: voiceVal, speed:1 }) });
+    busy(false); toast('Audio ready','success'); document.getElementById('status').textContent=`Audio: ${data.duration}s via ${data.engine}` + (data.note?' — using local preview, install Piper for real voice':'');
     lastAudio=data.url;
-    const a=document.getElementById('audioOut'); a.src=data.url; document.getElementById('audioDl').href=data.url; document.getElementById('result').style.display='block';
-    // Fallback SpeechSynthesis preview
-    if(data.engine==='ffmpeg-synth'){ const u=new SpeechSynthesisUtterance(script.value.slice(0,200)); speechSynthesis.speak(u); }
+    const a=document.getElementById('audioOut'); a.src=data.url; a.load(); document.getElementById('audioDl').href=data.url; document.getElementById('result').style.display='block';
+    // Fallback SpeechSynthesis preview for true voice when using placeholder tone
+    if(data.engine==='ffmpeg-synth'){
+      try{ speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance(script.value.slice(0,280)); u.rate=1; u.lang=$('lang').value==='en'?'en-US':$('lang').value; speechSynthesis.speak(u); }catch{}
+    } else {
+      try{ speechSynthesis.cancel(); }catch{}
+    }
+    a.play().catch(()=>{});
   }catch(e){ busy(false); toast(e.message,'error'); }
 });
 document.getElementById('genVideo').addEventListener('click', async()=>{
   try{
+    if(!script.value.trim()) return toast('Script required','error');
     busy(true,'Rendering video (FFmpeg)... may take 10-20s');
-    const data=await api('/api/video/render',{ method:'POST', body: JSON.stringify({ script: script.value, language: $('lang').value, voice: $('voice').value, platform: $('platform').value, template: $('template').value, music: $('music').value? $('music').value+'.mp3':'', musicVolume:0.3, sfx, subtitles: $('subs').checked }) });
+    const data=await api('/api/video/render',{ method:'POST', body: JSON.stringify({ script: script.value, language: $('lang').value, voice: $('voice').value||'en_US-lessac-medium', platform: $('platform').value, template: $('template').value, music: $('music').value? $('music').value+'.mp3':'', musicVolume:0.3, sfx, subtitles: $('subs').checked }) });
     busy(false); toast('Video ready','success');
     document.getElementById('status').textContent=`Video ${data.width}x${data.height} ${data.ratio} ~${Math.round(data.duration)}s`;
     lastVideo=data.url;
-    const v=document.getElementById('videoOut'); v.src=data.url; v.style.display='block'; document.getElementById('result').style.display='block';
-    if(data.vttUrl){ const track=document.createElement('track'); track.kind='subtitles'; track.src=data.vttUrl; track.default=true; v.appendChild(track); }
+    const v=document.getElementById('videoOut'); // remove old tracks
+    v.querySelectorAll('track').forEach(t=>t.remove());
+    v.src=data.url; v.load(); v.style.display='block'; document.getElementById('result').style.display='block';
+    if(data.vttUrl){ const track=document.createElement('track'); track.kind='subtitles'; track.label='Subtitles'; track.srclang=$('lang').value; track.src=data.vttUrl; track.default=true; v.appendChild(track); }
+    // auto-play muted preview
+    v.muted=true; v.play().catch(()=>{});
   }catch(e){ busy(false); toast(e.message,'error'); }
 });
 document.getElementById('translateBtn').addEventListener('click', async()=>{
   const lang=$('lang').value; if(lang==='en') return toast('Select non-English language first','error');
+  if(!script.value.trim()) return toast('Script empty','error');
+  const btn=document.getElementById('translateBtn'); const orig=btn.textContent; btn.textContent='Translating...'; btn.disabled=true;
   try{
     const data=await api('/api/translate',{ method:'POST', body: JSON.stringify({ text: script.value, targetLang: lang }) });
-    script.value=data.translated; refresh(); toast('Translated to '+lang,'success');
-  }catch(e){ toast(e.message,'error'); }
+    script.value=data.translated; refresh(); toast('Translated to '+lang+' (local)','success');
+  }catch(e){ toast(e.message,'error'); } finally{ btn.textContent=orig; btn.disabled=false; }
+});
+// background music preview — actually audible
+document.getElementById('music')?.addEventListener('change',()=>{
+  const v=document.getElementById('music').value;
+  const wrap=document.getElementById('musicPreviewWrap');
+  const a=document.getElementById('musicPreview');
+  const hint=document.getElementById('status');
+  if(v){
+    hint.textContent='Music "'+v+'" will be mixed at 0.3 volume in video. Preview below.';
+    a.src='/assets/music/'+v+'.mp3';
+    wrap.style.display='block';
+    a.volume=0.5;
+    a.play().catch(()=>{});
+  } else {
+    wrap.style.display='none';
+    try{a.pause();}catch{}
+    hint.textContent='Music disabled — voice will render without background.';
+  }
 });
 document.getElementById('thumbBtn').addEventListener('click', async()=>{
   try{

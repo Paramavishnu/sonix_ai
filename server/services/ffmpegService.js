@@ -1,58 +1,64 @@
 import { execSync } from 'child_process';
 import fs from 'fs';
 import { existsSync } from 'fs';
+import { resolvedFfmpeg, resolvedFfprobe } from '../utils/helpers.js';
 
-const fallback = '/tmp/node/bin/ffmpeg';
-const fallbackAlt = '/tmp/ffmpeg-7.0.2-amd64-static/ffmpeg';
-export const ffmpegBin = existsSync(fallback) ? fallback : (existsSync(fallbackAlt) ? fallbackAlt : (process.env.FFMPEG_PATH || 'ffmpeg'));
-export const ffprobeBin = existsSync('/tmp/node/bin/ffprobe') ? '/tmp/node/bin/ffprobe' : (existsSync('/tmp/ffmpeg-7.0.2-amd64-static/ffprobe') ? '/tmp/ffmpeg-7.0.2-amd64-static/ffprobe' : (process.env.FFPROBE_PATH || 'ffprobe'));
+export const ffmpegBin = resolvedFfmpeg;
+export const ffprobeBin = resolvedFfprobe;
+
+// WSL path quirk: ffmpeg.exe from Windows mount needs linux-style path quoted
+function q(p){ return `"${p.replace(/"/g,'\\"')}"`; }
 
 export function getDuration(file) {
   try {
-    const out = execSync(`${ffprobeBin} -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${file}"`, { encoding:'utf8' });
+    const out = execSync(`"${ffprobeBin}" -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 ${q(file)}`, { encoding:'utf8' });
     return parseFloat(out) || 0;
   } catch { return 0; }
 }
 
 export function mixAudio({ voiceFile, musicFile, sfxFiles=[], musicVolume=0.3, out }) {
-  // voiceFile mandatory, music optional, sfx array of {file, at}
   if (!voiceFile) throw new Error('Voice file required');
-  if (!musicFile && sfxFiles.length===0) {
-    execSync(`${ffmpegBin} -y -i "${voiceFile}" -codec:a copy "${out}"`, { stdio:'ignore' });
+  if (!existsSync(voiceFile)) throw new Error('Voice file not found: '+voiceFile);
+  // If no music/sfx actually exist, just copy
+  const hasMusic = musicFile && existsSync(musicFile);
+  const validSfx = (sfxFiles||[]).filter(s=> s.file && existsSync(s.file));
+  if (!hasMusic && validSfx.length===0) {
+    if(hasMusic===false && musicFile) console.warn('[mixAudio] music not found, skipping:', musicFile);
+    execSync(`"${ffmpegBin}" -y -i ${q(voiceFile)} -codec:a copy ${q(out)}`, { stdio:'ignore' });
     return;
   }
-  // Build filter_complex mixing
-  let inputs = ` -i "${voiceFile}"`;
+  let inputs = ` -i ${q(voiceFile)}`;
   const filterParts = [];
   let amixInputs = '[0:a]';
   let idx = 1;
-  if (musicFile) {
-    inputs += ` -stream_loop -1 -i "${musicFile}"`;
-    // music: lower volume, trim to voice duration, fade
-    filterParts.push(`[${idx}:a]volume=${musicVolume},afade=t=in:st=0:d=1,afade=t=out:st=0:d=1,apad[bg]`);
+  if (hasMusic) {
+    inputs += ` -stream_loop -1 -i ${q(musicFile)}`;
+    const vol = Math.max(0, Math.min(1, Number(musicVolume)||0.3));
+    filterParts.push(`[${idx}:a]volume=${vol},afade=t=in:st=0:d=0.8,afade=t=out:st=0:d=0,apad[bg]`);
     amixInputs += '[bg]';
     idx++;
+  } else if(musicFile) {
+    console.warn('[mixAudio] music file missing, mixing without it:', musicFile);
   }
-  // SFX: overlay at specific time via adelay
-  sfxFiles.forEach((s, i) => {
-    inputs += ` -i "${s.file}"`;
+  validSfx.forEach((s, i) => {
+    inputs += ` -i ${q(s.file)}`;
     const delayMs = Math.round((s.at||0)*1000);
-    filterParts.push(`[${idx}:a]volume=${s.volume ?? 0.8},adelay=${delayMs}|${delayMs}[s${i}]`);
+    const vol = s.volume ?? 0.85;
+    filterParts.push(`[${idx}:a]volume=${vol},adelay=${delayMs}|${delayMs}[s${i}]`);
     amixInputs += `[s${i}]`;
     idx++;
   });
-  const totalInputs = 1 + (musicFile?1:0) + sfxFiles.length;
+  const totalInputs = 1 + (hasMusic?1:0) + validSfx.length;
   if (totalInputs > 1) {
-    filterParts.push(`${amixInputs}amix=inputs=${totalInputs}:duration=first:dropout_transition=0:normalize=0[mix]`);
-    const cmd = `${ffmpegBin} -y${inputs} -filter_complex "${filterParts.join(';')}" -map "[mix]" -codec:a libmp3lame -qscale:a 2 "${out}"`;
+    filterParts.push(`${amixInputs}amix=inputs=${totalInputs}:duration=first:dropout_transition=0:normalize=0:duration=first[mix]`);
+    const cmd = `"${ffmpegBin}" -y${inputs} -filter_complex "${filterParts.join(';')}" -map "[mix]" -codec:a libmp3lame -qscale:a 2 ${q(out)}`;
     execSync(cmd, { stdio:'ignore' });
   } else {
-    execSync(`${ffmpegBin} -y -i "${voiceFile}" -codec:a libmp3lame -qscale:a 2 "${out}"`, { stdio:'ignore'});
+    execSync(`"${ffmpegBin}" -y -i ${q(voiceFile)} -codec:a libmp3lame -qscale:a 2 ${q(out)}`, { stdio:'ignore'});
   }
 }
 
 export function makeVideo({ audioFile, template='minimal', platform='youtube', script, subtitlesFile, out, width, height, duration }) {
-  // Deterministic template backgrounds via lavfi color
   const templateColors = {
     minimal: '0x0f172a',
     educational: '0x1e3a5f',
@@ -64,25 +70,24 @@ export function makeVideo({ audioFile, template='minimal', platform='youtube', s
     news: '0x1e293b'
   };
   const bg = templateColors[template] || templateColors.minimal;
-  // Convert hex 0xRRGGBB to ffmpeg color 0xRRGGBB
   const w = width || 1920, h = height || 1080;
-  const dur = duration || 5;
-  // Build drawtext: script words centered, simple text
-  // Escape text for ffmpeg
-  const safeText = script.slice(0, 120).replace(/:/g,'\\:').replace(/'/g,"\\'").replace(/%/g,'\\%');
-  // Try to include subtitlesFile if exists via subtitles filter (requires font)
-  let vf = `color=c=${bg}:s=${w}x${h}:d=${dur}:r=30,format=yuv420p`;
-  // Add scaling text via drawtext if font available; fallback without text if fails
-  // We'll add subtitles burn-in if file provided
-  if (subtitlesFile && existsSync(subtitlesFile)) {
-    vf += `,subtitles=${subtitlesFile}:force_style='Fontsize=28,PrimaryColour=&H00FFFFFF,BackColour=&H80000000,Alignment=2,MarginV=60'`;
-  }
-  const cmdNoText = `${ffmpegBin} -y -f lavfi -i "color=c=${bg}:s=${w}x${h}:d=${dur}:r=30" -i "${audioFile}" -filter_complex "[0:v]format=yuv420p,scale=${w}:${h}[v]" -map "[v]" -map 1:a -c:v libx264 -pix_fmt yuv420p -r 30 -c:a aac -shortest "${out}"`;
-  // Prefer with drawtext if ffmpeg has it
+  const dur = Math.max(1, duration || 5);
+  // Use subtitles burn-in only if file exists and ffmpeg supports it; else plain color video
+  const hasSubs = subtitlesFile && existsSync(subtitlesFile);
+  // Prefer simple color+audio path which is reliable across ffmpeg 9 builds
+  // We keep subtitles as optional; if burn-in fails we fallback to no subs but still produce video
+  const baseCmd = hasSubs
+    ? `"${ffmpegBin}" -y -f lavfi -i "color=c=${bg}:s=${w}x${h}:d=${dur}:r=30" -i ${q(audioFile)} -vf "subtitles=${subtitlesFile.replace(/\\/g,'/').replace(/:/g,'\\:')}:force_style='Fontsize=28,PrimaryColour=&H00FFFFFF,BackColour=&H80000000,Alignment=2,MarginV=60'" -c:v libx264 -pix_fmt yuv420p -r 30 -c:a aac -shortest ${q(out)}`
+    : `"${ffmpegBin}" -y -f lavfi -i "color=c=${bg}:s=${w}x${h}:d=${dur}:r=30" -i ${q(audioFile)} -c:v libx264 -pix_fmt yuv420p -r 30 -c:a aac -shortest ${q(out)}`;
+  // Alternative filter_complex variant for some builds
+  const altCmd = `"${ffmpegBin}" -y -f lavfi -i "color=c=${bg}:s=${w}x${h}:d=${dur}:r=30" -i ${q(audioFile)} -filter_complex "[0:v]format=yuv420p,scale=${w}:${h}[v]" -map "[v]" -map 1:a -c:v libx264 -pix_fmt yuv420p -r 30 -c:a aac -shortest ${q(out)}`;
   try {
-    execSync(cmdNoText, { stdio:'ignore' });
+    execSync(baseCmd, { stdio:'ignore' });
   } catch(e) {
-    // Fallback simpler
-    execSync(`${ffmpegBin} -y -f lavfi -i "color=c=black:s=${w}x${h}:d=${dur}:r=30" -i "${audioFile}" -c:v libx264 -pix_fmt yuv420p -r 30 -c:a aac -shortest "${out}"`, { stdio:'ignore'});
+    try { execSync(altCmd, { stdio:'ignore' }); }
+    catch(e2){
+      // last fallback black
+      execSync(`"${ffmpegBin}" -y -f lavfi -i "color=c=black:s=${w}x${h}:d=${dur}:r=30" -i ${q(audioFile)} -c:v libx264 -pix_fmt yuv420p -r 30 -c:a aac -shortest ${q(out)}`, { stdio:'ignore'});
+    }
   }
 }

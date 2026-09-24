@@ -14,7 +14,10 @@ export async function api(path, opts={}){
   const headers = { 'Content-Type':'application/json', ...(opts.headers||{}) };
   if(token) headers['Authorization'] = `Bearer ${token}`;
   const res = await fetch(path, { ...opts, headers });
-  const data = await res.json().catch(()=> ({}));
+  const ct = res.headers.get('content-type')||'';
+  let data={};
+  if(ct.includes('application/json')) data = await res.json().catch(()=> ({}));
+  else { const t=await res.text().catch(()=> ''); data={error:t||`Request failed ${res.status}`}; }
   if(!res.ok) throw new Error(data.error || `Request failed ${res.status}`);
   return data;
 }
