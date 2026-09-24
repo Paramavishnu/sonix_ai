@@ -53,6 +53,9 @@ export async function synthesize({ text, voice='en_US-lessac-medium', speed=1, l
   const effDuration = Math.max(1, rawDuration / speedVal);
   // 1. Try real Piper if available and model exists
   const pb = piperBinary();
+  console.log('[piper DEBUG] Binary detected:', pb);
+  console.log('[piper DEBUG] Voice requested:', voice);
+  console.log('[piper DEBUG] Language requested:', language);
   if (pb) {
     // Resolve model path for both platforms
     const rawModelDir = process.env.PIPER_MODELS_DIR || './models/piper';
@@ -68,6 +71,8 @@ export async function synthesize({ text, voice='en_US-lessac-medium', speed=1, l
       else if(existsSync(absAlt)) modelPath = absAlt;
     }
     if (existsSync(modelPath)) {
+      console.log('[piper DEBUG] Model path:', modelPath);
+      console.log('[piper DEBUG] Model exists:', existsSync(modelPath));
       const outWav = tmpFile('wav');
       try {
         await new Promise((resolve, reject)=>{
@@ -88,6 +93,8 @@ export async function synthesize({ text, voice='en_US-lessac-medium', speed=1, l
           try{ const out = execSync(`"${ffprobeBin}" -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${outWav}"`,{encoding:'utf8'}); const d=parseFloat(out); if(d>0) actualDur = d; }catch{}
           execSync(`"${ffmpegBin}" -y -i "${outWav}" -codec:a libmp3lame -qscale:a 2 -filter:a "atempo=${atempo}" "${mp3}"`, { stdio:'ignore' });
           cleanup([outWav]);
+          console.log('[piper DEBUG] REAL PIPER SUCCESS');
+          console.log('[piper DEBUG] Output:', mp3);
           return { file: mp3, duration: actualDur, engine: 'piper' };
         }
         cleanup([outWav]);
@@ -96,10 +103,10 @@ export async function synthesize({ text, voice='en_US-lessac-medium', speed=1, l
         try{cleanup([outWav]);}catch{} /* fallback */ 
       }
     } else {
-      console.warn('[piper] model not found:', modelPath);
+      console.error('[piper DEBUG] MODEL NOT FOUND:', modelPath);
     }
   } else {
-    console.warn('[piper] binary not found, using synth');
+      console.error('[piper DEBUG] BINARY NOT FOUND -> FALLING BACK TO SYNTH');
   }
   // 2. Deterministic local fallback: generate pleasant voice-like audio (no paid API)
   if (!ffmpegExists()) {
